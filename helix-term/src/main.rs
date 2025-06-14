@@ -1,227 +1,156 @@
-//! This example shows how to make a basic widget that accumulates
-//! text input and renders it to the screen
-#![allow(unused)]
-use anyhow::Error;
-use termwiz::caps::Capabilities;
-use termwiz::cell::AttributeChange;
-use termwiz::color::{AnsiColor, ColorAttribute, RgbColor};
-use termwiz::input::*;
-use termwiz::surface::Change;
-use termwiz::terminal::buffered::BufferedTerminal;
-use termwiz::terminal::{new_terminal, Terminal};
-use termwiz::widgets::*;
+use anyhow::{Context, Error, Result};
+use crossterm::event::EventStream;
+use helix_loader::VERSION_AND_GIT_HASH;
+use helix_term::application::Application;
+use helix_term::args::Args;
+use helix_term::config::{Config, ConfigLoadError};
 
-/// This is a widget for our application
-struct MainScreen {}
+fn setup_logging(verbosity: u64) -> Result<()> {
+    let mut base_config = fern::Dispatch::new();
 
-impl MainScreen {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
+    base_config = match verbosity {
+        0 => base_config.level(log::LevelFilter::Warn),
+        1 => base_config.level(log::LevelFilter::Info),
+        2 => base_config.level(log::LevelFilter::Debug),
+        _3_or_more => base_config.level(log::LevelFilter::Trace),
+    };
 
-impl Widget for MainScreen {
-    fn process_event(&mut self, event: &WidgetEvent, _args: &mut UpdateArgs) -> bool {
-        true // handled it all
-    }
+    // Separate file config so we can include year, month and day in file logs
+    let file_config = fern::Dispatch::new()
+        .format(|out, message, record| {
+            out.finish(format_args!(
+                "{} {} [{}] {}",
+                chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%.3f"),
+                record.target(),
+                record.level(),
+                message
+            ))
+        })
+        .chain(fern::log_file(helix_loader::log_file())?);
 
-    /// Draw ourselves into the surface provided by RenderArgs
-    fn render(&mut self, args: &mut RenderArgs) {
-        // args.surface.add_change(Change::ClearScreen(
-        //     ColorAttribute::TrueColorWithPaletteFallback(
-        //         RgbColor::new(0x31, 0x1B, 0x92),
-        //         AnsiColor::Black.into(),
-        //     ),
-        // ));
-        // args.surface
-        //     .add_change(Change::Attribute(AttributeChange::Foreground(
-        //         ColorAttribute::TrueColorWithPaletteFallback(
-        //             RgbColor::new(0xB3, 0x88, 0xFF),
-        //             AnsiColor::Purple.into(),
-        //         ),
-        //     )));
-    }
-
-    fn get_size_constraints(&self) -> layout::Constraints {
-        let mut constraints = layout::Constraints::default();
-        constraints.child_orientation = layout::ChildOrientation::Vertical;
-        constraints
-    }
-}
-
-struct Buffer<'a> {
-    /// Holds the input text that we wish the widget to display
-    text: &'a mut String,
-}
-
-impl<'a> Buffer<'a> {
-    /// Initialize the widget with the input text
-    pub fn new(text: &'a mut String) -> Self {
-        Self { text }
-    }
-}
-
-impl<'a> Widget for Buffer<'a> {
-    fn process_event(&mut self, event: &WidgetEvent, _args: &mut UpdateArgs) -> bool {
-        match event {
-            WidgetEvent::Input(InputEvent::Key(KeyEvent {
-                key: KeyCode::Char(c),
-                ..
-            })) => self.text.push(*c),
-            WidgetEvent::Input(InputEvent::Key(KeyEvent {
-                key: KeyCode::Enter,
-                ..
-            })) => {
-                self.text.push_str("\r\n");
-            }
-            WidgetEvent::Input(InputEvent::Paste(s)) => {
-                self.text.push_str(&s);
-            }
-            _ => {}
-        }
-
-        true // handled it all
-    }
-
-    /// Draw ourselves into the surface provided by RenderArgs
-    fn render(&mut self, args: &mut RenderArgs) {
-        args.surface
-            .add_change(Change::ClearScreen(ColorAttribute::Default));
-
-        // args.surface
-        //     .add_change(Change::Attribute(AttributeChange::Foreground(
-        //         ColorAttribute::TrueColorWithPaletteFallback(
-        //             RgbColor::new(0x11, 0x00, 0xFF),
-        //             AnsiColor::Purple.into(),
-        //         ),
-        //     )));
-        let dims = args.surface.dimensions();
-        args.surface
-            .add_change(format!("🤷 surface size is {:?}\r\n", dims));
-        args.surface.add_change(self.text.clone());
-
-        // Place the cursor at the end of the text.
-        // A more advanced text editing widget would manage the
-        // cursor position differently.
-        *args.cursor = CursorShapeAndPosition {
-            coords: args.surface.cursor_position().into(),
-            shape: termwiz::surface::CursorShape::SteadyBar,
-            ..Default::default()
-        };
-    }
-
-    fn get_size_constraints(&self) -> layout::Constraints {
-        let mut c = layout::Constraints::default();
-        c.set_valign(layout::VerticalAlignment::Top);
-        c
-    }
-}
-
-struct StatusLine {}
-
-impl StatusLine {
-    pub fn new() -> Self {
-        StatusLine {}
-    }
-}
-impl Widget for StatusLine {
-    fn process_event(&mut self, event: &WidgetEvent, _args: &mut UpdateArgs) -> bool {
-        true
-    }
-
-    fn render(&mut self, args: &mut RenderArgs) {
-        args.surface.add_change(Change::ClearScreen(
-            ColorAttribute::TrueColorWithPaletteFallback(
-                RgbColor::new(0xFF, 0xFF, 0xFF),
-                AnsiColor::Black.into(),
-            ),
-        ));
-        args.surface
-            .add_change(Change::Attribute(AttributeChange::Foreground(
-                ColorAttribute::TrueColorWithPaletteFallback(
-                    RgbColor::new(0x00, 0x00, 0x00),
-                    AnsiColor::Black.into(),
-                ),
-            )));
-
-        args.surface.add_change(" helix");
-    }
-
-    fn get_size_constraints(&self) -> layout::Constraints {
-        *layout::Constraints::default()
-            .set_fixed_height(1)
-            .set_valign(layout::VerticalAlignment::Bottom)
-    }
-}
-
-fn main() -> Result<(), Error> {
-    // Start with an empty string; typing into the app will
-    // update this string.
-    let mut typed_text = String::new();
-
-    {
-        // Create a terminal and put it into full screen raw mode
-        let caps = Capabilities::new_from_env()?;
-        let mut buf = BufferedTerminal::new(new_terminal(caps)?)?;
-        buf.terminal().enter_alternate_screen()?;
-        buf.terminal().set_raw_mode()?;
-
-        // Set up the UI
-        let mut ui = Ui::new();
-
-        let root_id = ui.set_root(MainScreen::new());
-        let buffer_id = ui.add_child(root_id, Buffer::new(&mut typed_text));
-        // let root_id = ui.set_root(Buffer::new(&mut typed_text));
-        ui.add_child(root_id, StatusLine::new());
-        ui.set_focus(buffer_id);
-
-        loop {
-            ui.process_event_queue()?;
-
-            // After updating and processing all of the widgets, compose them
-            // and render them to the screen.
-            if ui.render_to_screen(&mut buf)? {
-                // We have more events to process immediately; don't block waiting
-                // for input below, but jump to the top of the loop to re-run the
-                // updates.
-                continue;
-            }
-            // Compute an optimized delta to apply to the terminal and display it
-            buf.flush()?;
-
-            // Wait for user input
-            match buf.terminal().poll_input(None) {
-                Ok(Some(InputEvent::Resized { rows, cols })) => {
-                    // FIXME: this is working around a bug where we don't realize
-                    // that we should redraw everything on resize in BufferedTerminal.
-                    buf.add_change(Change::ClearScreen(Default::default()));
-                    buf.resize(cols, rows);
-                }
-                Ok(Some(input)) => match input {
-                    InputEvent::Key(KeyEvent {
-                        key: KeyCode::Escape,
-                        ..
-                    }) => {
-                        // Quit the app when escape is pressed
-                        break;
-                    }
-                    input @ _ => {
-                        // Feed input into the Ui
-                        ui.queue_event(WidgetEvent::Input(input));
-                    }
-                },
-                Ok(None) => {}
-                Err(e) => {
-                    print!("{:?}\r\n", e);
-                    break;
-                }
-            }
-        }
-    }
-
-    // After we've stopped the full screen raw terminal,
-    // print out the final edited value of the input text.
-    println!("The text you entered: {}", typed_text);
+    base_config.chain(file_config).apply()?;
 
     Ok(())
+}
+
+fn main() -> Result<()> {
+    let exit_code = main_impl()?;
+    std::process::exit(exit_code);
+}
+
+#[tokio::main]
+async fn main_impl() -> Result<i32> {
+    let args = Args::parse_args().context("could not parse arguments")?;
+
+    helix_loader::initialize_config_file(args.config_file.clone());
+    helix_loader::initialize_log_file(args.log_file.clone());
+
+    // Help has a higher priority and should be handled separately.
+    if args.display_help {
+        print!(
+            "\
+{} {}
+{}
+{}
+
+USAGE:
+    hx [FLAGS] [files]...
+
+ARGS:
+    <files>...    Sets the input file to use, position can also be specified via file[:row[:col]]
+
+FLAGS:
+    -h, --help                     Prints help information
+    --tutor                        Loads the tutorial
+    --health [CATEGORY]            Checks for potential errors in editor setup
+                                   CATEGORY can be a language or one of 'clipboard', 'languages'
+                                   or 'all'. 'all' is the default if not specified.
+    -g, --grammar {{fetch|build}}    Fetches or builds tree-sitter grammars listed in languages.toml
+    -c, --config <file>            Specifies a file to use for configuration
+    -v                             Increases logging verbosity each use for up to 3 times
+    --log <file>                   Specifies a file to use for logging
+                                   (default file: {})
+    -V, --version                  Prints version information
+    --vsplit                       Splits all given files vertically into different windows
+    --hsplit                       Splits all given files horizontally into different windows
+    -w, --working-dir <path>       Specify an initial working directory
+    +N                             Open the first given file at line number N
+",
+            env!("CARGO_PKG_NAME"),
+            VERSION_AND_GIT_HASH,
+            env!("CARGO_PKG_AUTHORS"),
+            env!("CARGO_PKG_DESCRIPTION"),
+            helix_loader::default_log_file().display(),
+        );
+        std::process::exit(0);
+    }
+
+    if args.display_version {
+        println!("helix {}", VERSION_AND_GIT_HASH);
+        std::process::exit(0);
+    }
+
+    if args.health {
+        if let Err(err) = helix_term::health::print_health(args.health_arg) {
+            // Piping to for example `head -10` requires special handling:
+            // https://stackoverflow.com/a/65760807/7115678
+            if err.kind() != std::io::ErrorKind::BrokenPipe {
+                return Err(err.into());
+            }
+        }
+
+        std::process::exit(0);
+    }
+
+    if args.fetch_grammars {
+        helix_loader::grammar::fetch_grammars()?;
+        return Ok(0);
+    }
+
+    if args.build_grammars {
+        helix_loader::grammar::build_grammars(None)?;
+        return Ok(0);
+    }
+
+    setup_logging(args.verbosity).context("failed to initialize logging")?;
+
+    // NOTE: Set the working directory early so the correct configuration is loaded. Be aware that
+    // Application::new() depends on this logic so it must be updated if this changes.
+    if let Some(path) = &args.working_directory {
+        helix_stdx::env::set_current_working_dir(path)?;
+    } else if let Some((path, _)) = args.files.first().filter(|p| p.0.is_dir()) {
+        // If the first file is a directory, it will be the working directory unless -w was specified
+        helix_stdx::env::set_current_working_dir(path)?;
+    }
+
+    let config = match Config::load_default() {
+        Ok(config) => config,
+        Err(ConfigLoadError::Error(err)) if err.kind() == std::io::ErrorKind::NotFound => {
+            Config::default()
+        }
+        Err(ConfigLoadError::Error(err)) => return Err(Error::new(err)),
+        Err(ConfigLoadError::BadConfig(err)) => {
+            eprintln!("Bad config: {}", err);
+            eprintln!("Press <ENTER> to continue with default config");
+            use std::io::Read;
+            let _ = std::io::stdin().read(&mut []);
+            Config::default()
+        }
+    };
+
+    let lang_loader = helix_core::config::user_lang_loader().unwrap_or_else(|err| {
+        eprintln!("{}", err);
+        eprintln!("Press <ENTER> to continue with default language config");
+        use std::io::Read;
+        // This waits for an enter press.
+        let _ = std::io::stdin().read(&mut []);
+        helix_core::config::default_lang_loader()
+    });
+
+    // TODO: use the thread local executor to spawn the application task separately from the work pool
+    let mut app = Application::new(args, config, lang_loader).context("unable to start Helix")?;
+
+    let exit_code = app.run(&mut EventStream::new()).await?;
+
+    Ok(exit_code)
 }

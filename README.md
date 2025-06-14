@@ -1,80 +1,64 @@
-- server-client architecture via gRPC, UI separate from core
-- multi cursor based editing and slicing
-- WASM based plugins (builtin LSP & fuzzy file finder)
-- piece table-based tree structure for changes
+<div align="center">
 
+<h1>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="logo_dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="logo_light.svg">
+  <img alt="Helix" height="128" src="logo_light.svg">
+</picture>
+</h1>
 
-Structure similar to codemirror:
+[![Build status](https://github.com/helix-editor/helix/actions/workflows/build.yml/badge.svg)](https://github.com/helix-editor/helix/actions)
+[![GitHub Release](https://img.shields.io/github/v/release/helix-editor/helix)](https://github.com/helix-editor/helix/releases/latest)
+[![Documentation](https://shields.io/badge/-documentation-452859)](https://docs.helix-editor.com/)
+[![GitHub contributors](https://img.shields.io/github/contributors/helix-editor/helix)](https://github.com/helix-editor/helix/graphs/contributors)
+[![Matrix Space](https://img.shields.io/matrix/helix-community:matrix.org)](https://matrix.to/#/#helix-community:matrix.org)
 
-text (ropes)
-- column utils, stuff like tab aware (row, col) -> char pos translation
-- word/grapheme/code point utils and iterators
-state
-- transactions
-  - changes
-  - annotations (time changed etc)
-  - state effects
-  - additional editor state as facets
-- snapshots as an async view into current state
-- selections { anchor (nonmoving), head (moving) from/to } -> SelectionSet with a primary
-  - cursor is just a single range selection
-- markers
-  track a position inside text that synchronizes with edits
-{ doc, selection, update(), splice, changes(), facets, tabSize, identUnit, lineSeparator, changeFilter/transactionFilter to modify stuff before }
-view (actual UI)
-- renders via termwiz
-- viewport(Lines) -> what's actually visible
-- extend the view via Decorations (inline styling) or Components (UI)
-    - mark / wieget / line / replace decoration
-commands (transform state)
-- movement
-- selection extension
-- deletion
-- indentation
-keymap (maps keys to commands)
-history (undo tree via immutable ropes)
-- undoes transactions
-- invert changes (generates a revert)
-(collab mode)
-gutter (line numbers, diagnostic marker, etc) -> ties into UI components
-rangeset/span -> mappable over changes (can be a marker primitive?)
-syntax (treesitter)
-- indentation strategies
-fold
-selections (select mode/multiselect)
-matchbrackets
-closebrackets
-special-chars (shows dots etc for specials)
-panel (for UI: file pickers, search dialogs, etc)
-tooltip (for UI)
-search (regex? pcre)
-lint (async linters)
-lsp
-highlight (?)
-stream-syntax
-autocomplete
-comment (gc, etc for auto commenting)
-snippets
+</div>
 
-terminal mode?
+![Screenshot](./screenshot.png)
 
-plugins can contain more commands/ui abstractions to use elsewhere
+A [Kakoune](https://github.com/mawww/kakoune) / [Neovim](https://github.com/neovim/neovim) inspired editor, written in Rust.
 
-languageData as presets for each language (syntax, indent, comment, etc)
+The editing model is very heavily based on Kakoune; during development I found
+myself agreeing with most of Kakoune's design decisions.
 
-TODO: determine rust vs script portions
+For more information, see the [website](https://helix-editor.com) or
+[documentation](https://docs.helix-editor.com/).
 
-vim stuff:
-motions/operators/text objects
-full visual mode
-macros
-jump lists
-marks
-yank/paste
-conceal for markdown markers, etc
+All shortcuts/keymaps can be found [in the documentation on the website](https://docs.helix-editor.com/keymap.html).
 
+[Troubleshooting](https://github.com/helix-editor/helix/wiki/Troubleshooting)
 
----
+# Features
 
-codemirror uses offsets exclusively with Line being computed when necessary
-(with start/end extents)
+- Vim-like modal editing
+- Multiple selections
+- Built-in language server support
+- Smart, incremental syntax highlighting and code editing via tree-sitter
+
+Although it's primarily a terminal-based editor, I am interested in exploring
+a custom renderer (similar to Emacs) using wgpu or skulpin.
+
+Note: Only certain languages have indentation definitions at the moment. Check
+`runtime/queries/<lang>/` for `indents.scm`.
+
+# Installation
+
+[Installation documentation](https://docs.helix-editor.com/install.html).
+
+[![Packaging status](https://repology.org/badge/vertical-allrepos/helix-editor.svg?exclude_unsupported=1)](https://repology.org/project/helix-editor/versions)
+
+# Contributing
+
+Contributing guidelines can be found [here](./docs/CONTRIBUTING.md).
+
+# Getting help
+
+Your question might already be answered on the [FAQ](https://github.com/helix-editor/helix/wiki/FAQ).
+
+Discuss the project on the community [Matrix Space](https://matrix.to/#/#helix-community:matrix.org) (make sure to join `#helix-editor:matrix.org` if you're on a client that doesn't support Matrix Spaces yet).
+
+# Credits
+
+Thanks to [@jakenvac](https://github.com/jakenvac) for designing the logo!
