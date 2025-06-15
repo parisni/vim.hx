@@ -1,64 +1,59 @@
-<div align="center">
+<h1 align="center">Helix-Vim-Mod</h1>
 
-<h1>
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="logo_dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="logo_light.svg">
-  <img alt="Helix" height="128" src="logo_light.svg">
-</picture>
-</h1>
+A [Helix](https://helix-editor.com) fork that adds Vim-like keybindings — intended as a lightweight patch, without altering the core functionality of Helix.
+<br>
 
-[![Build status](https://github.com/helix-editor/helix/actions/workflows/build.yml/badge.svg)](https://github.com/helix-editor/helix/actions)
-[![GitHub Release](https://img.shields.io/github/v/release/helix-editor/helix)](https://github.com/helix-editor/helix/releases/latest)
-[![Documentation](https://shields.io/badge/-documentation-452859)](https://docs.helix-editor.com/)
-[![GitHub contributors](https://img.shields.io/github/contributors/helix-editor/helix)](https://github.com/helix-editor/helix/graphs/contributors)
-[![Matrix Space](https://img.shields.io/matrix/helix-community:matrix.org)](https://matrix.to/#/#helix-community:matrix.org)
+<p align="center">
+  <img src="./screenshot.png" alt="Screenshot" style="width:80%;" />
+</p>
 
-</div>
 
-![Screenshot](./screenshot.png)
+## Installation
+Rust has great tooling! You can build this repo from source just like Helix itself:
+👉 [Follow the official Helix build guide](https://docs.helix-editor.com/building-from-source.html)
 
-A [Kakoune](https://github.com/mawww/kakoune) / [Neovim](https://github.com/neovim/neovim) inspired editor, written in Rust.
+## Vim Supported Keybindings (Partial List)
 
-The editing model is very heavily based on Kakoune; during development I found
-myself agreeing with most of Kakoune's design decisions.
+### Visual Mode & Visual Lines
 
-For more information, see the [website](https://helix-editor.com) or
-[documentation](https://docs.helix-editor.com/).
+- `v`, `V`
+- `va<char>`, `vi<textobject>` (`<textobject>`: `w`, `W`, `p`...etc)
+- Treesitter-related selection such as `vaf` to select a function.
 
-All shortcuts/keymaps can be found [in the documentation on the website](https://docs.helix-editor.com/keymap.html).
+### Operators/Modifiers
 
-[Troubleshooting](https://github.com/helix-editor/helix/wiki/Troubleshooting)
+- `d`, `dd`, `c`, `cc`, `y`, `yy` 
+- `[c|y|d]<motion>`  like `dw`, `dB`
+- `[c|y|d]{textobject}` like  `diw`, `da)`, `yi}`
+-  Treesitter-related modification keybindings such as `daf` to delete a function or `yaf` to yank a function.
 
-# Features
+### Navigation
 
-- Vim-like modal editing
-- Multiple selections
-- Built-in language server support
-- Smart, incremental syntax highlighting and code editing via tree-sitter
+- `*`, `#`, `n`, `N`
+- `0`, `^`, `$`
+- `f<char>`, `F<char>`, `t<char>`, `T<char>`
+- `{`, `}`
+- `w`, `W`, `b`, `B`, `e`, `E`
+- `gg`, `G`
+- `C-^`, `C-6`
 
-Although it's primarily a terminal-based editor, I am interested in exploring
-a custom renderer (similar to Emacs) using wgpu or skulpin.
+### What’s Different?
 
-Note: Only certain languages have indentation definitions at the moment. Check
-`runtime/queries/<lang>/` for `indents.scm`.
+- No `Ctrl-R` for redo — Instead, use `U`, similar to Helix.
+- No `%` for bracket jumping — Use `mm`, or configure your own mapping in the Helix config:
 
-# Installation
+  ```toml
+  [keys.normal]
+  "%" = ["match_brackets"]
+  ```
 
-[Installation documentation](https://docs.helix-editor.com/install.html).
 
-[![Packaging status](https://repology.org/badge/vertical-allrepos/helix-editor.svg?exclude_unsupported=1)](https://repology.org/project/helix-editor/versions)
+## Alternatives / Similar Projects
 
-# Contributing
+Here are some other projects you might find interesting, depending on your needs:
 
-Contributing guidelines can be found [here](./docs/CONTRIBUTING.md).
+- Learn [Helix](https://helix-editor.com), give it a try!
 
-# Getting help
-
-Your question might already be answered on the [FAQ](https://github.com/helix-editor/helix/wiki/FAQ).
-
-Discuss the project on the community [Matrix Space](https://matrix.to/#/#helix-community:matrix.org) (make sure to join `#helix-editor:matrix.org` if you're on a client that doesn't support Matrix Spaces yet).
-
-# Credits
-
-Thanks to [@jakenvac](https://github.com/jakenvac) for designing the logo!
+- [**helix-vim**](https://github.com/LGUG2Z/helix-vim) — A Vim-like configuration for Helix. This is an attempt to provide Vim-like keybindings using Helix configs only.
+  
+- [**evil-helix**](https://github.com/usagi-flow/evil-helix) — A fork of Helix that inspired this project.
