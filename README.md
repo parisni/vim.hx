@@ -39,17 +39,17 @@ Rust has great tooling! You can build this repo from source just like Helix itse
 - `C-^`, `C-6`
 
 ### 🔍 Things to Watch For
-- No `Ctrl-R` for redo — Instead, use `U`, similar to Helix.
-- The `%` key is mapped to `match_brackets`, similar to Vim. To revert this mapping or assign it to a custom key, update the Helix configuration as follows:
+This project is not intended to be a replica of Vim, so note the following differences:
 
-  ```toml
+- No Ctrl-R for redo — Instead, use uppercase U, as in Helix.
+- The `%` key is mapped to `match_brackets`, similar to Vim. To revert this mapping or assign it to a custom key, update the Helix configuration as follows:
+ ```toml
   [keys.normal]
   "%" = "select_all"
   [keys.select]
   "%" = "select_all"
-  ```
-
-
+```
+ - Helix allows selections outside of "Select" mode (equivalent to Vim's "Visual" mode). Currently, this patch does not alter that behavior. The added Vim commands will ignore such selections.
 ## Alternatives / Similar Projects
 
 Here are some other projects you might find interesting:
