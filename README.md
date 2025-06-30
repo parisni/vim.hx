@@ -1,4 +1,4 @@
-<h1 align="center">Helix-Vim-Patch</h1>
+<h1 align="center">Vim.hx</h1>
 
 A [Helix](https://helix-editor.com) fork that adds Vim-like keybindings — intended as a lightweight patch, without altering the core functionality of Helix.
 <br>
