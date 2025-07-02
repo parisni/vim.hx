@@ -38,10 +38,10 @@ Rust’s excellent tooling makes it easy to build this project from source—jus
 - `gg`, `G`
 - `C-^`, `C-6`
 
-### 🔍 Things to Watch For
+## 🔍 Things to Watch For
 This project is not intended to be a replica of Vim, so note the following differences:
 
-- No Ctrl-R for redo — Instead, use uppercase U, as in Helix.
+- No `Ctrl-R` for redo — Instead, use uppercase `U`, as in Helix.
 - The `%` key is mapped to `match_brackets`, similar to Vim. To revert this mapping or assign it to a custom key, update the Helix configuration as follows:
  ```toml
   [keys.normal]
@@ -50,9 +50,29 @@ This project is not intended to be a replica of Vim, so note the following diffe
   "%" = "select_all"
 ```
  - Helix allows selections outside of "Select" mode (equivalent to Vim's "Visual" mode). Currently, this patch does not alter that behavior. The added Vim commands will ignore such selections.
+ - `s` is used by Helix for `select_regex` and it's an important command for multi-cursor support, use `c` instead.
  - In Helix, the cursor can be positioned on the newline grapheme at the end of a line. This can result in different paste behavior when using the `p` and `P` commands.
 
 Some of these differences might be removed in the future.
+
+## 🔄 How to Find and Replace?
+
+1. **Select target text** using Vim motions:  
+   - For the whole file: `ggVG`  
+   - You can also remap `select_all` as explained earlier.
+
+2. **Select using regex**:  
+   - Press `s`, then type your regex (e.g., `(foo|bar)`) and hit `<Enter>`.
+
+3. **Replace using multi-cursor**:  
+   - Use Vim-style editing. For example, press `c` to change, then type your replacement text.
+
+4. **Exit multi-cursor mode**:  
+   - Press `,` (comma)
+
+> 💡 Based on the [original Helix discussion](https://github.com/helix-editor/helix/discussions/3630)
+
+
 ## Alternatives / Similar Projects
 
 Here are some other projects you might find interesting:
