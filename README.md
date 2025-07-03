@@ -42,20 +42,19 @@ Rust’s excellent tooling makes it easy to build this project from source—jus
 This project is not intended to be a replica of Vim, so note the following differences:
 
 - No `Ctrl-R` for redo — Instead, use uppercase `U`, as in Helix.
-- The `%` key is mapped to `match_brackets`, similar to Vim. To revert this mapping or assign it to a custom key, update the Helix configuration as follows:
+ - Helix allows selections outside of "Select" mode (equivalent to Vim's "Visual" mode). Currently, this patch does not alter that behavior. The added Vim commands will ignore such selections.
+ - `s` is used by Helix for `select_regex` and it's an important command for multi-cursor support, use `c` instead.
+ - The `%` key is mapped to `match_brackets`, similar to Vim. To revert this mapping or assign it to a custom key, update the Helix configuration as follows:
  ```toml
   [keys.normal]
   "%" = "select_all"
   [keys.select]
   "%" = "select_all"
 ```
- - Helix allows selections outside of "Select" mode (equivalent to Vim's "Visual" mode). Currently, this patch does not alter that behavior. The added Vim commands will ignore such selections.
- - `s` is used by Helix for `select_regex` and it's an important command for multi-cursor support, use `c` instead.
- - In Helix, the cursor can be positioned on the newline grapheme at the end of a line. This can result in different paste behavior when using the `p` and `P` commands.
 
 Some of these differences might be removed in the future.
 
-## 🔄 How to Find and Replace?
+### 🔄 How to Find and Replace?
 
 1. **Select target text** using Vim motions:  
    - For the whole file: `ggVG`  
@@ -72,6 +71,11 @@ Some of these differences might be removed in the future.
 
 > 💡 Based on the [original Helix discussion](https://github.com/helix-editor/helix/discussions/3630)
 
+### 🗂️ Where’s the File Explorer?
+ - `<Space>e`  Open file explorer in workspace root
+ - `<Space>E`  Open file explorer at current buffer's directory
+ - `<Space>f`  Open file picker
+ - `<Space>F`  Open file picker at current working directory
 
 ## Alternatives / Similar Projects
 
