@@ -1,16 +1,11 @@
 <h1 align="center">Vim.hx</h1>
 
-A [Helix](https://helix-editor.com) fork that adds Vim-like keybindings — intended as a lightweight patch, without altering the core functionality of Helix.
+A [Helix](https://helix-editor.com) fork that adds Vim-like keybindings — intended as a lightweight patch, without altering the core functionality of Helix. Ideal for users who prefer Vim keybindings but want to benefit from Helix’s editing capabilities like multi-cursor support and tree-sitter awareness.
 <br>
 
 <p align="center">
   <img src="./screenshot.png" alt="Screenshot" style="width:80%;" />
 </p>
-
-
-## Installation
-Rust’s excellent tooling makes it easy to build this project from source—just like Helix itself.
-👉 [Follow the official Helix build guide](https://docs.helix-editor.com/building-from-source.html)
 
 ## Vim Supported Keybindings (Partial List)
 
@@ -77,10 +72,11 @@ Some of these differences might be removed in the future.
  - `<Space>f`  Open file picker
  - `<Space>F`  Open file picker at current working directory
 
-## Alternatives / Similar Projects
 
-Here are some other projects you might find interesting:
 
-- [**helix-vim**](https://github.com/LGUG2Z/helix-vim) — A Vim-like configuration for Helix. This is an attempt to provide Vim-like keybindings using Helix configs only.
-  
-- [**evil-helix**](https://github.com/usagi-flow/evil-helix) — A fork of Helix that inspired this project.
+## Installation
+#### Build from Source
+To get the latest, build this project from source—just like Helix itself.
+👉 [Follow the official Helix build guide](https://docs.helix-editor.com/building-from-source.html)
+#### Pre-built binaries
+Download pre-built binaries from the [GitHub Releases page](https://github.com/badranX/vim.hx/releases/). Then, follow the [official Helix guide](https://docs.helix-editor.com/install.html#pre-built-binaries) for setup steps.
