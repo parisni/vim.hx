@@ -7,6 +7,17 @@ A [Helix](https://helix-editor.com) fork that adds Vim-like keybindings — inte
   <img src="./screenshot.png" alt="Screenshot" style="width:80%;" />
 </p>
 
+## Switching between Vim mode and Helix
+To switch between Vim mode and Helix mode, use:
+
+```bash
+:vim_enable
+```
+
+```bash
+:vim_disable
+```
+
 ## Vim Supported Keybindings (Partial List)
 
 ### Visual Mode & Visual Lines
@@ -64,14 +75,11 @@ Some of these differences might be removed in the future.
 4. **Exit multi-cursor mode**:  
    - Press `,` (comma)
 
-> 💡 Based on the [original Helix discussion](https://github.com/helix-editor/helix/discussions/3630)
-
 ### 🗂️ Where’s the File Explorer?
  - `<Space>e`  Open file explorer in workspace root
  - `<Space>E`  Open file explorer at current buffer's directory
  - `<Space>f`  Open file picker
  - `<Space>F`  Open file picker at current working directory
-
 
 
 ## Installation
