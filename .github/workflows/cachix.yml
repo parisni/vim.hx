@@ -7,6 +7,7 @@ on:
 
 jobs:
   publish:
+    if: false # job not enabled on this fork
     name: Publish Flake
     runs-on: ubuntu-latest
     steps:
