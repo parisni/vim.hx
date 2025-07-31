@@ -9,6 +9,7 @@ on:
 
 jobs:
   deploy:
+    if: false # job not enabled on this fork
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
