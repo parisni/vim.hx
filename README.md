@@ -1,6 +1,6 @@
 <h1 align="center">Vim.hx</h1>
 
-A [Helix](https://helix-editor.com) fork that adds Vim-like keybindings — intended as a lightweight patch, without altering the core functionality of Helix. Ideal for users who prefer Vim keybindings but want to benefit from Helix’s editing capabilities like multi-cursor support and tree-sitter awareness.
+A [Helix](https://helix-editor.com) patch that adds Vim-like keybindings. Ideal for users who prefer Vim motions but want to benefit from Helix’s editing capabilities like multi-cursor support and tree-sitter awareness.
 <br>
 
 <p align="center">
