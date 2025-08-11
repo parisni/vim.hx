@@ -374,7 +374,10 @@ pub mod vim_typed_commands {
             doc.set_selection(view.id, new_selection);
         }
 
-        let cmd = format!("{} 's{}'", "sed", args.first().unwrap_or(""));
+        // escape `"`
+        let user_input = args.first().unwrap_or("").replace('\"', "\\\"");
+
+        let cmd = format!("{} \"s{}\"", "sed", user_input);
         shell(cx, &cmd, &ShellBehavior::Replace);
 
         // Collaps selection
