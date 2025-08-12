@@ -374,10 +374,19 @@ pub mod vim_typed_commands {
             doc.set_selection(view.id, new_selection);
         }
 
+        if args.len() > 1 {
+            cx.editor
+                .set_error("Space is not supported yet, please surround sed argument with \" or '");
+            return Ok(());
+        }
+
         if let Some(user_input) = args.first() {
             let mut user_input = user_input.to_owned();
-            if !user_input.starts_with('/') && !user_input.starts_with('|') {
-                user_input = format!("/{}", user_input);
+            if user_input.starts_with('"') && user_input.ends_with('"')
+                || user_input.starts_with('\'') && user_input.ends_with('\'')
+            {
+                user_input.pop();
+                user_input.remove(0);
             }
 
             // escape `"`

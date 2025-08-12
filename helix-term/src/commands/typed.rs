@@ -2701,7 +2701,7 @@ pub const TYPABLE_COMMAND_LIST: &[TypableCommand] = &[
         fun: vim_typed_commands::vim_sed,
         completer: CommandCompleter::none(),
         signature: Signature {
-            positionals: (0, Some(1)),
+            positionals: (0, None),
             ..Signature::DEFAULT
         }
     },
