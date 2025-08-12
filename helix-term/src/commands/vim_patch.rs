@@ -386,13 +386,14 @@ pub mod vim_typed_commands {
             let cmd = format!("{} \"s{}\"", "sed", user_input);
             shell(cx, &cmd, &ShellBehavior::Replace);
 
-            // Collaps selection
-            let (view, doc) = current!(cx.editor);
-            let selection = doc.selection(view.id).clone().transform(|range| {
-                let pos = range.cursor(doc.text().slice(..));
-                Range::new(pos, pos)
-            });
-            doc.set_selection(view.id, selection);
+            if cx.editor.mode != Mode::Select {
+                let (view, doc) = current!(cx.editor);
+                let selection = doc.selection(view.id).clone().transform(|range| {
+                    let pos = range.cursor(doc.text().slice(..));
+                    Range::new(pos, pos)
+                });
+                doc.set_selection(view.id, selection);
+            }
         }
 
         Ok(())
