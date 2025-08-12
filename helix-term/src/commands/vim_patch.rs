@@ -374,19 +374,26 @@ pub mod vim_typed_commands {
             doc.set_selection(view.id, new_selection);
         }
 
-        // escape `"`
-        let user_input = args.first().unwrap_or("").replace('\"', "\\\"");
+        if let Some(user_input) = args.first() {
+            let mut user_input = user_input.to_owned();
+            if !user_input.starts_with('/') && !user_input.starts_with('|') {
+                user_input = format!("/{}", user_input);
+            }
 
-        let cmd = format!("{} \"s{}\"", "sed", user_input);
-        shell(cx, &cmd, &ShellBehavior::Replace);
+            // escape `"`
+            user_input = user_input.replace('\"', "\\\"");
 
-        // Collaps selection
-        let (view, doc) = current!(cx.editor);
-        let selection = doc.selection(view.id).clone().transform(|range| {
-            let pos = range.cursor(doc.text().slice(..));
-            Range::new(pos, pos)
-        });
-        doc.set_selection(view.id, selection);
+            let cmd = format!("{} \"s{}\"", "sed", user_input);
+            shell(cx, &cmd, &ShellBehavior::Replace);
+
+            // Collaps selection
+            let (view, doc) = current!(cx.editor);
+            let selection = doc.selection(view.id).clone().transform(|range| {
+                let pos = range.cursor(doc.text().slice(..));
+                Range::new(pos, pos)
+            });
+            doc.set_selection(view.id, selection);
+        }
 
         Ok(())
     }
