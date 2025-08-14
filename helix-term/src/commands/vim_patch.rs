@@ -4,6 +4,7 @@ use std::sync::{
 };
 
 use crate::commands::*;
+mod vim_shell_patch;
 
 use helix_core::command_line::Args;
 use helix_core::graphemes::{
@@ -393,7 +394,11 @@ pub mod vim_typed_commands {
             user_input = user_input.replace('\"', "\\\"");
 
             let cmd = format!("{} \"s{}\"", "sed", user_input);
-            shell(cx, &cmd, &ShellBehavior::Replace);
+            vim_shell_patch::shell_on_success(
+                cx,
+                &cmd,
+                &vim_shell_patch::CopyShellBehavior::Replace,
+            );
 
             if cx.editor.mode != Mode::Select {
                 let (view, doc) = current!(cx.editor);
