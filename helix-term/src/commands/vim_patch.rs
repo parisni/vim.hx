@@ -368,17 +368,17 @@ pub mod vim_typed_commands {
             return Ok(());
         }
 
+        if args.len() > 1 {
+            cx.editor
+                .set_error("Space is not supported yet, please surround sed argument with \" or '");
+            return Ok(());
+        }
+
         if cx.editor.mode != Mode::Select {
             let (view, doc) = current!(cx.editor);
             let end_char = doc.text().len_chars();
             let new_selection = Selection::single(0, end_char);
             doc.set_selection(view.id, new_selection);
-        }
-
-        if args.len() > 1 {
-            cx.editor
-                .set_error("Space is not supported yet, please surround sed argument with \" or '");
-            return Ok(());
         }
 
         if let Some(user_input) = args.first() {
