@@ -3712,6 +3712,9 @@ fn execute_command_line(
     input: &str,
     event: PromptEvent,
 ) -> anyhow::Result<()> {
+    // Vim.hx: allow sed command
+    let input = &vim_typed_commands::vim_reformat_sed_command(input);
+
     let (command, rest, _) = command_line::split(input);
     if command.is_empty() {
         return Ok(());

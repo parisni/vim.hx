@@ -359,6 +359,14 @@ pub mod vim_typed_commands {
         Ok(())
     }
 
+    pub fn vim_reformat_sed_command(input: &str) -> String {
+        if input.starts_with("s/") {
+            format!("s \"/{}\"", &input.trim()[2..])
+        } else {
+            input.to_string()
+        }
+    }
+
     pub fn vim_sed(
         cx: &mut compositor::Context,
         args: Args,
