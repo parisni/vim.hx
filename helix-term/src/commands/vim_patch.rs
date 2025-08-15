@@ -389,8 +389,10 @@ pub mod vim_typed_commands {
 
         let input_range = if cx.editor.mode != Mode::Select {
             let end_char = doc.text().len_chars();
+            if end_char == 0 {
+                return Ok(());
+            }
             Some(Range::new(0, end_char))
-            // doc.set_selection(view.id, new_selection);
         } else {
             None
         };
