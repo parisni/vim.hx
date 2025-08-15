@@ -384,12 +384,16 @@ pub mod vim_typed_commands {
             return Ok(());
         }
 
-        if cx.editor.mode != Mode::Select {
-            let (view, doc) = current!(cx.editor);
+        let (view, doc) = current!(cx.editor);
+        let prev_range = doc.selection(view.id).primary();
+
+        let input_range = if cx.editor.mode != Mode::Select {
             let end_char = doc.text().len_chars();
-            let new_selection = Selection::single(0, end_char);
-            doc.set_selection(view.id, new_selection);
-        }
+            Some(Range::new(0, end_char))
+            // doc.set_selection(view.id, new_selection);
+        } else {
+            None
+        };
 
         if let Some(user_input) = args.first() {
             let mut user_input = user_input.to_owned();
@@ -404,20 +408,10 @@ pub mod vim_typed_commands {
             user_input = user_input.replace('\"', "\\\"");
 
             let cmd = format!("{} \"s{}\"", "sed", user_input);
-            vim_shell_patch::shell_on_success(
-                cx,
-                &cmd,
-                &vim_shell_patch::CopyShellBehavior::Replace,
-            );
+            vim_shell_patch::shell_on_success(cx, &cmd, input_range, prev_range);
 
-            if cx.editor.mode != Mode::Select {
-                let (view, doc) = current!(cx.editor);
-                let selection = doc.selection(view.id).clone().transform(|range| {
-                    let pos = range.cursor(doc.text().slice(..));
-                    Range::new(pos, pos)
-                });
-                doc.set_selection(view.id, selection);
-            }
+            let (view, doc) = current!(cx.editor);
+            push_jump(view, doc);
         }
 
         Ok(())

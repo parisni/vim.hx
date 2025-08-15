@@ -1,14 +1,6 @@
 // This file is a hack and should be removed once Helix introduce alternative solution
-// It is a Copy/Paste shell commands from commands::* with little change
+// It is adapted from shell commands of commands::*
 use crate::commands::*;
-
-#[derive(Eq, PartialEq)]
-pub enum CopyShellBehavior {
-    Replace,
-    Ignore,
-    _Insert,
-    _Append,
-}
 
 fn shell_impl(shell: &[String], cmd: &str, input: Option<Rope>) -> anyhow::Result<Tendril> {
     tokio::task::block_in_place(|| helix_lsp::block_on(shell_impl_async(shell, cmd, input)))
@@ -79,11 +71,13 @@ async fn shell_impl_async(
     Ok(Tendril::from(output))
 }
 
-pub fn shell_on_success(cx: &mut compositor::Context, cmd: &str, behavior: &CopyShellBehavior) {
-    let pipe = match behavior {
-        CopyShellBehavior::Replace | CopyShellBehavior::Ignore => true,
-        CopyShellBehavior::_Insert | CopyShellBehavior::_Append => false,
-    };
+pub fn shell_on_success(
+    cx: &mut compositor::Context,
+    cmd: &str,
+    input_range: Option<Range>,
+    prev_range: Range,
+) {
+    let pipe = true;
 
     let config = cx.editor.config();
     let shell = &config.shell;
@@ -91,12 +85,16 @@ pub fn shell_on_success(cx: &mut compositor::Context, cmd: &str, behavior: &Copy
     let selection = doc.selection(view.id);
 
     let mut changes = Vec::with_capacity(selection.len());
-    let mut ranges = SmallVec::with_capacity(selection.len());
     let text = doc.text().slice(..);
 
     let mut shell_output: Option<Tendril> = None;
-    let mut offset = 0isize;
     for range in selection.ranges() {
+        let range = if let Some(tmp_range) = input_range {
+            &tmp_range.clone()
+        } else {
+            range
+        };
+
         let output = if let Some(output) = shell_output.as_ref() {
             output.clone()
         } else {
@@ -122,38 +120,24 @@ pub fn shell_on_success(cx: &mut compositor::Context, cmd: &str, behavior: &Copy
             }
         };
 
-        let output_len = output.chars().count();
-
-        let (from, to, deleted_len) = match behavior {
-            CopyShellBehavior::Replace => (range.from(), range.to(), range.len()),
-            CopyShellBehavior::_Insert => (range.from(), range.from(), 0),
-            CopyShellBehavior::_Append => (range.to(), range.to(), 0),
-            _ => (range.from(), range.from(), 0),
-        };
-
-        // These `usize`s cannot underflow because selection ranges cannot overlap.
-        let anchor = to
-            .checked_add_signed(offset)
-            .expect("Selection ranges cannot overlap")
-            .checked_sub(deleted_len)
-            .expect("Selection ranges cannot overlap");
-        let new_range = Range::new(anchor, anchor + output_len).with_direction(range.direction());
-        ranges.push(new_range);
-        offset = offset
-            .checked_add_unsigned(output_len)
-            .expect("Selection ranges cannot overlap")
-            .checked_sub_unsigned(deleted_len)
-            .expect("Selection ranges cannot overlap");
+        let (from, to) = (range.from(), range.to());
 
         changes.push((from, to, Some(output)));
+
+        if input_range.is_some() {
+            break;
+        }
     }
 
-    if behavior != &CopyShellBehavior::Ignore {
-        let transaction = Transaction::change(doc.text(), changes.into_iter())
-            .with_selection(Selection::new(ranges, selection.primary_index()));
-        doc.apply(&transaction, view.id);
-        doc.append_changes_to_history(view);
-    }
+    let prev_selection = doc.selection(view.id).clone().transform(|range| {
+        let pos = range.cursor(doc.text().slice(..));
+        Range::new(prev_range.anchor.min(pos), prev_range.anchor.min(pos))
+    });
+
+    let transaction =
+        Transaction::change(doc.text(), changes.into_iter()).with_selection(prev_selection);
+    doc.apply(&transaction, view.id);
+    doc.append_changes_to_history(view);
 
     // after replace cursor may be out of bounds, do this to
     // make sure cursor is in view and update scroll as well
