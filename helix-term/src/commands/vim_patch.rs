@@ -361,9 +361,9 @@ pub mod vim_typed_commands {
 
     pub fn vim_reformat_sed_command(input: &str) -> String {
         if input.starts_with("s/") || input.starts_with("s|") {
-            format!("s \"{}\"", &input.trim()[1..])
+            format!("vim-sed \"{}\"", &input.trim()[1..])
         } else if input.starts_with("%s/") || input.starts_with("%s|") {
-            format!("s \"{}\"", &input.trim()[2..])
+            format!("vim-sed \"{}\"", &input.trim()[2..])
         } else {
             input.to_string()
         }

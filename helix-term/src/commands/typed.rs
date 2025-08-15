@@ -2695,7 +2695,7 @@ pub const TYPABLE_COMMAND_LIST: &[TypableCommand] = &[
         },
     },
     TypableCommand {
-        name: "s",
+        name: "vim-sed",
         aliases: &[],
         doc: "run sed command (vim.hx)",
         fun: vim_typed_commands::vim_sed,
