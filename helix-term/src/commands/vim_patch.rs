@@ -387,16 +387,6 @@ pub mod vim_typed_commands {
         let (view, doc) = current!(cx.editor);
         let prev_range = doc.selection(view.id).primary();
 
-        let input_range = if cx.editor.mode != Mode::Select {
-            let end_char = doc.text().len_chars();
-            if end_char == 0 {
-                return Ok(());
-            }
-            Some(Range::new(0, end_char))
-        } else {
-            None
-        };
-
         if let Some(user_input) = args.first() {
             let mut user_input = user_input.to_owned();
             if user_input.starts_with('"') && user_input.ends_with('"')
@@ -410,7 +400,16 @@ pub mod vim_typed_commands {
             user_input = user_input.replace('\"', "\\\"");
 
             let cmd = format!("{} \"s{}\"", "sed", user_input);
-            vim_shell_patch::shell_on_success(cx, &cmd, input_range, prev_range);
+            if cx.editor.mode != Mode::Select {
+                let end_char = doc.text().len_chars();
+                if end_char == 0 {
+                    return Ok(());
+                }
+                let input_range = Range::new(0, end_char);
+                vim_shell_patch::shell_explicit(cx, &cmd, input_range, prev_range);
+            } else {
+                vim_shell_patch::shell_on_success(cx, &cmd);
+            }
 
             let (view, doc) = current!(cx.editor);
             push_jump(view, doc);

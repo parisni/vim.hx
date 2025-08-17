@@ -71,12 +71,13 @@ async fn shell_impl_async(
     Ok(Tendril::from(output))
 }
 
-pub fn shell_on_success(
+pub fn shell_explicit(
     cx: &mut compositor::Context,
     cmd: &str,
-    input_range: Option<Range>,
+    input_range: Range,
     prev_range: Range,
 ) {
+    // Adapted from commands::shell
     let pipe = true;
 
     let config = cx.editor.config();
@@ -87,14 +88,61 @@ pub fn shell_on_success(
     let mut changes = Vec::with_capacity(selection.len());
     let text = doc.text().slice(..);
 
-    let mut shell_output: Option<Tendril> = None;
-    for range in selection.ranges() {
-        let range = if let Some(tmp_range) = input_range {
-            &tmp_range.clone()
-        } else {
-            range
-        };
+    let output = {
+        let input = input_range.slice(text);
+        match shell_impl(shell, cmd, pipe.then(|| input.into())) {
+            Ok(mut output) => {
+                if !input.ends_with("\n") && output.ends_with('\n') {
+                    output.pop();
+                    if output.ends_with('\r') {
+                        output.pop();
+                    }
+                }
 
+                output
+            }
+            Err(err) => {
+                cx.editor.set_error(err.to_string());
+                return;
+            }
+        }
+    };
+
+    let (from, to) = (input_range.from(), input_range.to());
+
+    changes.push((from, to, Some(output)));
+
+    let prev_selection = doc.selection(view.id).clone().transform(|range| {
+        let pos = range.cursor(doc.text().slice(..));
+        Range::new(prev_range.anchor.min(pos), prev_range.anchor.min(pos))
+    });
+
+    let transaction =
+        Transaction::change(doc.text(), changes.into_iter()).with_selection(prev_selection);
+    doc.apply(&transaction, view.id);
+    doc.append_changes_to_history(view);
+
+    // after replace cursor may be out of bounds, do this to
+    // make sure cursor is in view and update scroll as well
+    view.ensure_cursor_in_view(doc, config.scrolloff);
+}
+
+pub fn shell_on_success(cx: &mut compositor::Context, cmd: &str) {
+    // Adapted from commands::shell
+    let pipe = true;
+
+    let config = cx.editor.config();
+    let shell = &config.shell;
+    let (view, doc) = current!(cx.editor);
+    let selection = doc.selection(view.id);
+
+    let mut changes = Vec::with_capacity(selection.len());
+    let mut ranges = SmallVec::with_capacity(selection.len());
+    let text = doc.text().slice(..);
+
+    let mut shell_output: Option<Tendril> = None;
+    let mut offset = 0isize;
+    for range in selection.ranges() {
         let output = if let Some(output) = shell_output.as_ref() {
             output.clone()
         } else {
@@ -120,22 +168,29 @@ pub fn shell_on_success(
             }
         };
 
-        let (from, to) = (range.from(), range.to());
+        let output_len = output.chars().count();
+
+        let (from, to, deleted_len) = (range.from(), range.to(), range.len());
+
+        // These `usize`s cannot underflow because selection ranges cannot overlap.
+        let anchor = to
+            .checked_add_signed(offset)
+            .expect("Selection ranges cannot overlap")
+            .checked_sub(deleted_len)
+            .expect("Selection ranges cannot overlap");
+        let new_range = Range::new(anchor, anchor + output_len).with_direction(range.direction());
+        ranges.push(new_range);
+        offset = offset
+            .checked_add_unsigned(output_len)
+            .expect("Selection ranges cannot overlap")
+            .checked_sub_unsigned(deleted_len)
+            .expect("Selection ranges cannot overlap");
 
         changes.push((from, to, Some(output)));
-
-        if input_range.is_some() {
-            break;
-        }
     }
 
-    let prev_selection = doc.selection(view.id).clone().transform(|range| {
-        let pos = range.cursor(doc.text().slice(..));
-        Range::new(prev_range.anchor.min(pos), prev_range.anchor.min(pos))
-    });
-
-    let transaction =
-        Transaction::change(doc.text(), changes.into_iter()).with_selection(prev_selection);
+    let transaction = Transaction::change(doc.text(), changes.into_iter())
+        .with_selection(Selection::new(ranges, selection.primary_index()));
     doc.apply(&transaction, view.id);
     doc.append_changes_to_history(view);
 
