@@ -110,12 +110,11 @@ pub fn shell_explicit(
 
     let (from, to) = (input_range.from(), input_range.to());
 
+    let len_output = output.len();
     changes.push((from, to, Some(output)));
 
-    let prev_selection = doc.selection(view.id).clone().transform(|range| {
-        let pos = range.cursor(doc.text().slice(..));
-        Range::new(prev_range.anchor.min(pos), prev_range.anchor.min(pos))
-    });
+    let new_pos = prev_range.from().min(len_output);
+    let prev_selection = Selection::single(new_pos, new_pos);
 
     let transaction =
         Transaction::change(doc.text(), changes.into_iter()).with_selection(prev_selection);
