@@ -7,12 +7,11 @@ on:
 
 jobs:
   publish:
-    if: false # job not enabled on this fork
     name: Publish Flake
     runs-on: ubuntu-latest
     steps:
     - name: Checkout sources
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Install nix
       uses: cachix/install-nix-action@v31

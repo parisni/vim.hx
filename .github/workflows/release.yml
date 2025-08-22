@@ -2,8 +2,8 @@ name: Release
 on:
   push:
     tags:
-    - '[0-9]+.[0-9]+-*'
-    - '[0-9]+.[0-9]+.[0-9]+-*'
+    - '[0-9]+.[0-9]+'
+    - '[0-9]+.[0-9]+.[0-9]+'
     branches:
     - 'patch/ci-release-*'
   pull_request:
@@ -15,7 +15,7 @@ env:
   # a release, allowing for manual inspection of the output. This mode is
   # activated if the CI run was triggered by events other than pushed tags, or
   # if the repository is a fork.
-  preview: false # disabled for this fork
+  preview: ${{ !startsWith(github.ref, 'refs/tags/') || github.repository != 'helix-editor/helix' }}
 
 jobs:
   fetch-grammars:
@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -58,10 +58,12 @@ jobs:
     strategy:
       fail-fast: false # don't fail other jobs if one fails
       matrix:
-        build: [aarch64-linux, x86_64-linux] #, x86_64-win-gnu, win32-msvc
+        build: [x86_64-linux, aarch64-linux, x86_64-macos, x86_64-windows, aarch64-macos] #, x86_64-win-gnu, win32-msvc
         include:
         - build: x86_64-linux
-          os: ubuntu-24.04
+          # WARN: When changing this to a newer version, make sure that the GLIBC isnt too new, as this can cause issues
+          # with portablity on older systems that dont follow ubuntus more rapid release cadence.
+          os: ubuntu-22.04
           rust: stable
           target: x86_64-unknown-linux-gnu
           cross: false
@@ -71,28 +73,26 @@ jobs:
           rust: stable
           target: aarch64-unknown-linux-gnu
           cross: false
+        - build: x86_64-macos
+          os: macos-latest
+          rust: stable
+          target: x86_64-apple-darwin
+          cross: false
+        - build: x86_64-windows
+          os: windows-latest
+          rust: stable
+          target: x86_64-pc-windows-msvc
+          cross: false
+        - build: aarch64-macos
+          os: macos-latest
+          rust: stable
+          target: aarch64-apple-darwin
+          cross: false
         # - build: riscv64-linux
         #   os: ubuntu-22.04
         #   rust: stable
         #   target: riscv64gc-unknown-linux-gnu
         #   cross: true
-        # - build: x86_64-macos
-        #   os: macos-latest
-        #   rust: stable
-        #   target: x86_64-apple-darwin
-        #   cross: false
-        # - build: x86_64-windows
-        #   os: windows-latest
-        #   rust: stable
-        #   target: x86_64-pc-windows-msvc
-        #   cross: false
-        # # 23.03: build issues
-        # - build: aarch64-macos
-        #   os: macos-latest
-        #   rust: stable
-        #   target: aarch64-apple-darwin
-        #   cross: false
-        #   skip_tests: true  # x86_64 host can't run aarch64 code
         # - build: x86_64-win-gnu
         #   os: windows-2019
         #   rust: stable-x86_64-gnu
@@ -104,16 +104,16 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download grammars
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
 
       - name: Move grammars under runtime
         if: "!startsWith(matrix.os, 'windows')"
         run: |
           mkdir -p runtime/grammars/sources
-          tar xJf grammars/grammars.tar.xz -C runtime/grammars/sources
+          tar xJf grammars.tar.xz -C runtime/grammars/sources
 
       # The rust-toolchain action ignores rust-toolchain.toml files.
       # Removing this before building with cargo ensures that the rust-toolchain
@@ -145,7 +145,7 @@ jobs:
           echo "target flag is: ${{ env.TARGET_FLAGS }}"
 
       - name: Run cargo test
-        if: false # tests disabled on this fork
+        if: "!matrix.skip_tests"
         run: ${{ env.CARGO }} test --release --locked --target ${{ matrix.target }} --workspace
 
       - name: Build release binary
@@ -214,7 +214,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          if [ "${{ matrix.os }}" = "windows-2019" ]; then
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
             cp "target/${{ matrix.target }}/opt/hx.exe" "dist/"
           else
             cp "target/${{ matrix.target }}/opt/hx" "dist/"
@@ -235,9 +235,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
 
       - name: Build archive
         shell: bash
