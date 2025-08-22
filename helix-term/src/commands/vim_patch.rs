@@ -4,6 +4,7 @@ use std::sync::{
 };
 
 use crate::commands::*;
+mod vim_shell_patch;
 
 use helix_core::command_line::Args;
 use helix_core::graphemes::{
@@ -74,6 +75,7 @@ impl AtomicState {
     }
 
     pub fn visual_line(&self) {
+        self.exit_visual_block();
         self.visual_lines.store(true, Ordering::Relaxed);
     }
 
@@ -86,6 +88,7 @@ impl AtomicState {
     }
 
     pub fn visual_block(&self) {
+        self.exit_visual_line();
         self.visual_block.store(true, Ordering::Relaxed);
     }
 
@@ -303,6 +306,10 @@ macro_rules! static_commands_with_default {
         vim_paste_clipboard_before, "Paste clipboard before selections (vim)",
         vim_move_char_left, "Move left (vim)",
         vim_move_char_right, "Move right (vim)",
+        vim_extend_char_left, "Extend left (vim)",
+        vim_extend_char_right, "Extend right (vim)",
+        vim_custom_extend_char_left, "Extend left like Helix, but like Vim in visual block (vim.hx)",
+        vim_custom_extend_char_right, "Extend right like Helix, but like Vim in visual block (vim.hx)",
         vim_select_regex, "Select all regex matches inside selections (vim.hx)",
         vim_select_all, "Select all in both normal and select mode (vim.hx)",
         vim_cmd_off, "Allow Helix commands to run as intended (vim.hx)",
@@ -350,6 +357,65 @@ pub mod vim_typed_commands {
 
         // The rest is copy/paste from typed::refresh_config
         cx.editor.config_events.0.send(ConfigEvent::Refresh)?;
+        Ok(())
+    }
+
+    pub fn vim_reformat_sed_command(input: &str) -> String {
+        if input.starts_with("s/") || input.starts_with("s|") {
+            format!("vim-sed \"{}\"", &input.trim()[1..])
+        } else if input.starts_with("%s/") || input.starts_with("%s|") {
+            format!("vim-sed \"{}\"", &input.trim()[2..])
+        } else {
+            input.to_string()
+        }
+    }
+
+    pub fn vim_sed(
+        cx: &mut compositor::Context,
+        args: Args,
+        event: PromptEvent,
+    ) -> anyhow::Result<()> {
+        if event != PromptEvent::Validate {
+            return Ok(());
+        }
+
+        if args.len() > 1 {
+            cx.editor
+                .set_error("Space is not supported yet, please surround sed argument with \" or '");
+            return Ok(());
+        }
+
+        let (view, doc) = current!(cx.editor);
+        let prev_range = doc.selection(view.id).primary();
+
+        if let Some(user_input) = args.first() {
+            let mut user_input = user_input.to_owned();
+            if user_input.starts_with('"') && user_input.ends_with('"')
+                || user_input.starts_with('\'') && user_input.ends_with('\'')
+            {
+                user_input.pop();
+                user_input.remove(0);
+            }
+
+            // escape `"`
+            user_input = user_input.replace('\"', "\\\"");
+
+            let cmd = format!("{} \"s{}\"", "sed", user_input);
+            if cx.editor.mode != Mode::Select {
+                let end_char = doc.text().len_chars();
+                if end_char == 0 {
+                    return Ok(());
+                }
+                let input_range = Range::new(0, end_char);
+                vim_shell_patch::shell_explicit(cx, &cmd, input_range, prev_range);
+            } else {
+                vim_shell_patch::shell_on_success(cx, &cmd);
+            }
+
+            let (view, doc) = current!(cx.editor);
+            push_jump(view, doc);
+        }
+
         Ok(())
     }
 }
@@ -437,7 +503,8 @@ mod vim_commands {
     }
 
     pub fn vim_normal_mode(cx: &mut Context) {
-        if cx.editor.mode == Mode::Select {
+        if cx.editor.mode == Mode::Select || VIM_STATE.is_visual_block() {
+            // Assumption: Visual Block is only available in Select & Insert mode and in both cases require saving selection
             VIM_STATE.save_current_selection(cx);
         }
 
@@ -644,7 +711,7 @@ mod vim_commands {
     pub fn vim_move_char_left(cx: &mut Context) {
         move_impl(
             cx,
-            vim_utils::vim_move_horizontally,
+            vim_utils::vim_hx_move_horizontally,
             Direction::Backward,
             Movement::Move,
         )
@@ -653,9 +720,53 @@ mod vim_commands {
     pub fn vim_move_char_right(cx: &mut Context) {
         move_impl(
             cx,
-            vim_utils::vim_move_horizontally,
+            vim_utils::vim_hx_move_horizontally,
             Direction::Forward,
             Movement::Move,
+        )
+    }
+
+    pub fn vim_custom_extend_char_left(cx: &mut Context) {
+        if VIM_STATE.is_visual_block() {
+            move_impl(
+                cx,
+                vim_utils::vim_hx_move_horizontally,
+                Direction::Backward,
+                Movement::Extend,
+            )
+        } else {
+            extend_char_left(cx);
+        }
+    }
+
+    pub fn vim_custom_extend_char_right(cx: &mut Context) {
+        if VIM_STATE.is_visual_block() {
+            move_impl(
+                cx,
+                vim_utils::vim_hx_move_horizontally,
+                Direction::Forward,
+                Movement::Extend,
+            )
+        } else {
+            extend_char_right(cx);
+        }
+    }
+
+    pub fn vim_extend_char_left(cx: &mut Context) {
+        move_impl(
+            cx,
+            vim_utils::vim_hx_move_horizontally,
+            Direction::Backward,
+            Movement::Extend,
+        )
+    }
+
+    pub fn vim_extend_char_right(cx: &mut Context) {
+        move_impl(
+            cx,
+            vim_utils::vim_hx_move_horizontally,
+            Direction::Forward,
+            Movement::Extend,
         )
     }
 
@@ -665,7 +776,7 @@ mod vim_commands {
     }
 
     pub fn vim_select_all(cx: &mut Context) {
-        VIM_STATE.exit_visual_line();
+        VIM_STATE.exit_visual_modes();
         VIM_STATE.allow_highlight();
         select_all(cx);
     }
@@ -797,7 +908,7 @@ mod vim_utils {
         }
     }
 
-    pub fn is_line_end(slice: RopeSlice, range: Range, line: usize) -> bool {
+    pub fn _is_line_end(slice: RopeSlice, range: Range, line: usize) -> bool {
         let new_line_char =
             prev_grapheme_boundary(slice, slice.line_to_char(line + 1)) == range.cursor(slice);
 
@@ -807,7 +918,7 @@ mod vim_utils {
         line_end || new_line_char
     }
 
-    pub fn vim_move_horizontally(
+    pub fn vim_hx_move_horizontally(
         slice: RopeSlice,
         range: Range,
         dir: Direction,
@@ -816,33 +927,24 @@ mod vim_utils {
         _: &TextFormat,
         _: &mut TextAnnotations,
     ) -> Range {
-        let line = range.cursor_line(slice);
-
-        let line_start = slice.line_to_char(line) == range.cursor(slice);
-        let line_end = is_line_end(slice, range, line);
-
-        // Check horizontall boundaries
-        match dir {
-            Direction::Forward => {
-                if line_end {
-                    return range;
-                }
-            }
-            Direction::Backward => {
-                if line_start {
-                    return range;
-                }
-            }
-        };
-
-        // The following is copy/paste from movement::move_horizontally
+        // The following is adapted from movement::move_horizontally
         let pos = range.cursor(slice);
 
         // Compute the new position.
-        let new_pos = match dir {
+        let mut new_pos = match dir {
             Direction::Forward => nth_next_grapheme_boundary(slice, pos, count),
             Direction::Backward => nth_prev_grapheme_boundary(slice, pos, count),
         };
+
+        let line_start = slice.char_to_line(pos);
+        let line_new = slice.char_to_line(new_pos);
+
+        if line_new.abs_diff(line_start) != 0 {
+            new_pos = match dir {
+                Direction::Forward => line_end_char_index(&slice, line_start),
+                Direction::Backward => slice.line_to_char(line_start),
+            };
+        }
 
         // Compute the final new range.
         range.put_cursor(slice, new_pos, behaviour == Movement::Extend)
@@ -1157,7 +1259,19 @@ impl VimOpCtx {
     pub fn operator_impl(cx: &mut Context, op: VimOp, register: Option<char>) {
         let opcx = Self::with_custom_register(cx, op, register);
         if cx.editor.mode == Mode::Select {
-            VIM_STATE.exit_visual_line();
+            if VIM_STATE.is_visual_block() {
+                // Copy/Paste from yank_joined
+                let separator = doc!(cx.editor).line_ending.as_str();
+                yank_joined_impl(
+                    cx.editor,
+                    separator,
+                    cx.register
+                        .unwrap_or(cx.editor.config().default_yank_register),
+                );
+                vim_exit_select_mode(cx);
+                return;
+            }
+
             opcx.run_operator_for_current_selection(cx);
             exit_select_mode(cx);
             return;
