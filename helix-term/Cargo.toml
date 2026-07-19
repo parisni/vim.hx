@@ -89,6 +89,9 @@ dashmap = "6.2"
 
 parking_lot.workspace = true
 
+# native file watcher (auto-reload open buffers on external change)
+notify = "8"
+
 [target.'cfg(windows)'.dependencies]
 crossterm = { version = "0.28", features = ["event-stream"] }
 
