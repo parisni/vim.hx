@@ -279,6 +279,8 @@ impl Transport {
                             }
                         }
                     }
+
+                    break;
                 }
             }
         }
