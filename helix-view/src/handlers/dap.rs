@@ -180,8 +180,11 @@ impl Editor {
                         let all_threads_stopped = all_threads_stopped.unwrap_or_default();
 
                         if all_threads_stopped {
-                            if let Ok(response) =
-                                debugger.request::<dap::requests::Threads>(()).await
+                            if let Ok(response) = debugger
+                                .request::<dap::requests::Threads>(Some(
+                                    dap::requests::ThreadsArguments {},
+                                ))
+                                .await
                             {
                                 for thread in response.threads {
                                     fetch_stack_trace(debugger, thread.id).await;
