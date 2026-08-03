@@ -244,23 +244,40 @@ impl Editor {
                         match &reason[..] {
                             "new" => {
                                 if let Some(source) = breakpoint.source {
-                                    self.breakpoints
-                                        .entry(source.path.unwrap()) // TODO: no unwraps
-                                        .or_default()
-                                        .push(Breakpoint {
-                                            id: breakpoint.id,
-                                            verified: breakpoint.verified,
-                                            message: breakpoint.message,
-                                            line: breakpoint.line.unwrap().saturating_sub(1), // TODO: no unwrap
-                                            column: breakpoint.column,
-                                            ..Default::default()
-                                        });
+                                    let Some(path) = source.path else {
+                                        warn!("DAP breakpoint event missing source path");
+                                        return false;
+                                    };
+                                    let Some(line) = breakpoint.line else {
+                                        warn!("DAP breakpoint event missing line");
+                                        return false;
+                                    };
+                                    self.breakpoints.entry(path).or_default().push(Breakpoint {
+                                        id: breakpoint.id,
+                                        verified: breakpoint.verified,
+                                        message: breakpoint.message,
+                                        line: line.saturating_sub(1),
+                                        column: breakpoint.column,
+                                        ..Default::default()
+                                    });
                                 }
                             }
                             "changed" => {
+                                let Some(id) = breakpoint.id else {
+                                    warn!("DAP breakpoint event missing id");
+                                    return false;
+                                };
+                                if let Some(source) = &breakpoint.source {
+                                    if source.path.is_none() {
+                                        warn!("DAP breakpoint event missing source path");
+                                    }
+                                }
+                                if breakpoint.line.is_none() {
+                                    warn!("DAP breakpoint event missing line");
+                                }
                                 for breakpoints in self.breakpoints.values_mut() {
                                     if let Some(i) =
-                                        breakpoints.iter().position(|b| b.id == breakpoint.id)
+                                        breakpoints.iter().position(|b| b.id == Some(id))
                                     {
                                         breakpoints[i].verified = breakpoint.verified;
                                         breakpoints[i].message = breakpoint
@@ -277,9 +294,13 @@ impl Editor {
                                 }
                             }
                             "removed" => {
+                                let Some(id) = breakpoint.id else {
+                                    warn!("DAP breakpoint event missing id");
+                                    return false;
+                                };
                                 for breakpoints in self.breakpoints.values_mut() {
                                     if let Some(i) =
-                                        breakpoints.iter().position(|b| b.id == breakpoint.id)
+                                        breakpoints.iter().position(|b| b.id == Some(id))
                                     {
                                         breakpoints.remove(i);
                                     }
