@@ -457,10 +457,16 @@ pub mod requests {
     pub enum ConfigurationDone {}
 
     impl Request for ConfigurationDone {
-        type Arguments = ();
+        type Arguments = Option<ConfigurationDoneArguments>;
         type Result = ();
         const COMMAND: &'static str = "configurationDone";
     }
+
+    // The DAP spec makes the body optional, but java-debug deserializes it
+    // through gson, which rejects a null where an object is declared. An empty
+    // struct serializes to {} and keeps every adapter happy.
+    #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+    pub struct ConfigurationDoneArguments {}
 
     #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
     #[serde(rename_all = "camelCase")]
