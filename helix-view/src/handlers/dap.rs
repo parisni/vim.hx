@@ -1,5 +1,6 @@
 use crate::editor::{Action, Breakpoint};
 use crate::{align_view, Align, Editor};
+use anyhow::bail;
 use dap::requests::DisconnectArguments;
 use helix_core::Selection;
 use helix_dap::{
@@ -90,34 +91,33 @@ pub fn breakpoints_changed(
     path: PathBuf,
     breakpoints: &mut [Breakpoint],
 ) -> Result<(), anyhow::Error> {
-    // TODO: handle capabilities correctly again, by filtering breakpoints when emitting
-    // if breakpoint.condition.is_some()
-    //     && !debugger
-    //         .caps
-    //         .as_ref()
-    //         .unwrap()
-    //         .supports_conditional_breakpoints
-    //         .unwrap_or_default()
-    // {
-    //     bail!(
-    //         "Can't edit breakpoint: debugger does not support conditional breakpoints"
-    //     )
-    // }
-    // if breakpoint.log_message.is_some()
-    //     && !debugger
-    //         .caps
-    //         .as_ref()
-    //         .unwrap()
-    //         .supports_log_points
-    //         .unwrap_or_default()
-    // {
-    //     bail!("Can't edit breakpoint: debugger does not support logpoints")
-    // }
+    if let Some(caps) = debugger.caps.as_ref() {
+        if breakpoints.iter().any(|b| b.condition.is_some())
+            && !caps.supports_conditional_breakpoints.unwrap_or_default()
+        {
+            bail!("Can't edit breakpoint: debugger does not support conditional breakpoints")
+        }
+        if breakpoints.iter().any(|b| b.hit_condition.is_some())
+            && !caps
+                .supports_hit_conditional_breakpoints
+                .unwrap_or_default()
+        {
+            bail!("Can't edit breakpoint: debugger does not support hit conditional breakpoints")
+        }
+        if breakpoints.iter().any(|b| b.log_message.is_some())
+            && !caps.supports_log_points.unwrap_or_default()
+        {
+            bail!("Can't edit breakpoint: debugger does not support logpoints")
+        }
+    }
     let source_breakpoints = breakpoints
         .iter()
         .map(|breakpoint| helix_dap::SourceBreakpoint {
             line: breakpoint.line + 1, // convert from 0-indexing to 1-indexing (TODO: could set debugger to 0-indexing on init)
-            ..Default::default()
+            column: breakpoint.column,
+            condition: breakpoint.condition.clone(),
+            hit_condition: breakpoint.hit_condition.clone(),
+            log_message: breakpoint.log_message.clone(),
         })
         .collect::<Vec<_>>();
 
