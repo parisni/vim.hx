@@ -432,8 +432,21 @@ impl Client {
     }
 
     pub async fn configuration_done(&self) -> Result<()> {
-        self.request::<requests::ConfigurationDone>(Some(requests::ConfigurationDoneArguments {}))
-            .await
+        if !self
+            .caps
+            .as_ref()
+            .and_then(|caps| caps.supports_configuration_done_request)
+            .unwrap_or(false)
+        {
+            return Ok(());
+        }
+
+        // The spec makes the response body optional, so decoding it into
+        // ConfigurationDone::Result would fail on adapters that omit it.
+        self.call::<requests::ConfigurationDone>(Some(requests::ConfigurationDoneArguments {}))
+            .await?;
+
+        Ok(())
     }
 
     pub fn continue_thread(&self, thread_id: ThreadId) -> impl Future<Output = Result<Value>> {
