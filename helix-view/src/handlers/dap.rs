@@ -216,7 +216,6 @@ impl Editor {
                         }
 
                         self.set_status(status);
-                        self.debug_adapters.set_active_client(id);
                     }
                     Event::Continued(events::ContinuedBody { thread_id, .. }) => {
                         let debugger = match self.debug_adapters.get_client_mut(id) {
@@ -324,6 +323,8 @@ impl Editor {
                         if debugger.configuration_done().await.is_ok() {
                             self.set_status("Debugged application started");
                         }; // TODO: do we need to handle error?
+
+                        self.debug_adapters.set_active_client(id);
                     }
                     Event::Terminated(terminated) => {
                         let debugger = match self.debug_adapters.get_client_mut(id) {
