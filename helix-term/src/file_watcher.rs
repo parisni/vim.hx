@@ -23,7 +23,7 @@ use std::{
     time::Duration,
 };
 
-use helix_event::{register_hook, send_blocking, AsyncHook};
+use helix_event::{register_hook, AsyncHook};
 use helix_view::{
     events::{DocumentDidClose, DocumentDidOpen},
     Editor,
@@ -232,6 +232,11 @@ fn spawn() -> Option<WatcherHandle> {
     }
     .spawn();
 
+    // `notify` runs its callback on its own OS thread, outside any tokio
+    // context, so `send_blocking` would panic in the time driver. Send through
+    // this handle instead of blocking the watcher thread.
+    let runtime = tokio::runtime::Handle::try_current().ok()?;
+
     let watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
         let Ok(event) = res else {
             return;
@@ -246,7 +251,10 @@ fn spawn() -> Option<WatcherHandle> {
         if event.paths.is_empty() {
             return;
         }
-        send_blocking(&tx, WatchEvent::Changed(event.paths));
+        let tx = tx.clone();
+        runtime.spawn(async move {
+            let _ = tx.send(WatchEvent::Changed(event.paths)).await;
+        });
     })
     .ok()?;
 
