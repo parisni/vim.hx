@@ -7,8 +7,6 @@ use tui::buffer::Buffer;
 
 use crate::compositor::{Component, Context, Event, EventResult};
 
-pub const FULL_OVERLAID_MAX_WIDTH: u16 = 200;
-
 /// Contains a component placed in the center of the parent component
 pub struct Overlay<T> {
     /// Child component
@@ -17,37 +15,11 @@ pub struct Overlay<T> {
     pub calc_child_size: Box<dyn Fn(Rect) -> Rect>,
 }
 
-/// Surrounds the component with a margin of 5% on each side, and an additional 2 rows at the bottom
+/// Gives the component the whole parent area, covering the statusline and command line
 pub fn overlaid<T>(content: T) -> Overlay<T> {
     Overlay {
         content,
-        calc_child_size: Box::new(|rect: Rect| {
-            let percentage = if rect.width < FULL_OVERLAID_MAX_WIDTH {
-                100
-            } else {
-                90
-            };
-            clip_rect_relative(rect.clip_bottom(2), percentage, percentage)
-        }),
-    }
-}
-
-fn clip_rect_relative(rect: Rect, percent_horizontal: u8, percent_vertical: u8) -> Rect {
-    fn mul_and_cast(size: u16, factor: u8) -> u16 {
-        ((size as u32) * (factor as u32) / 100).try_into().unwrap()
-    }
-
-    let inner_w = mul_and_cast(rect.width, percent_horizontal);
-    let inner_h = mul_and_cast(rect.height, percent_vertical);
-
-    let offset_x = rect.width.saturating_sub(inner_w) / 2;
-    let offset_y = rect.height.saturating_sub(inner_h) / 2;
-
-    Rect {
-        x: rect.x + offset_x,
-        y: rect.y + offset_y,
-        width: inner_w,
-        height: inner_h,
+        calc_child_size: Box::new(|rect: Rect| rect),
     }
 }
 

@@ -57,6 +57,9 @@ use self::handlers::{DynamicQueryChange, DynamicQueryHandler, PreviewHighlightHa
 pub const ID: &str = "picker";
 
 pub const MIN_AREA_WIDTH_FOR_PREVIEW: u16 = 72;
+/// Share of the width given to the list when the preview is shown: long paths
+/// get truncated at an even split.
+const PICKER_WIDTH_PERCENT: u32 = 60;
 /// Biggest file size to preview in bytes
 pub const MAX_FILE_SIZE_FOR_PREVIEW: u64 = 10 * 1024 * 1024;
 
@@ -1036,7 +1039,7 @@ impl<I: 'static + Send + Sync, D: 'static + Send + Sync> Component for Picker<I,
             self.show_preview && self.file_fn.is_some() && area.width > MIN_AREA_WIDTH_FOR_PREVIEW;
 
         let picker_width = if render_preview {
-            area.width / 2
+            (u32::from(area.width) * PICKER_WIDTH_PERCENT / 100) as u16
         } else {
             area.width
         };
@@ -1179,7 +1182,7 @@ impl<I: 'static + Send + Sync, D: 'static + Send + Sync> Component for Picker<I,
             self.show_preview && self.file_fn.is_some() && area.width > MIN_AREA_WIDTH_FOR_PREVIEW;
 
         let picker_width = if render_preview {
-            area.width / 2
+            (u32::from(area.width) * PICKER_WIDTH_PERCENT / 100) as u16
         } else {
             area.width
         };
